@@ -146,7 +146,9 @@ int main(int argc, const char * argv[]) {
         SaveBMP((char *)argv[2], png.getBuffer(), pPalette, png.getWidth(), png.getHeight(), i*png.getBpp());
         png.close();
         free(png.getBuffer());
-//    } // for j
-    }
+       } else {
+           printf("openRAM failed, error: %d\n", rc);
+       }
+//   } // for j
     return 0;
 }
