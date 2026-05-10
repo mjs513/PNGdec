@@ -305,6 +305,41 @@ PNG_STATIC void PNGRGB565(PNGDRAW *pDraw, uint16_t *pPixels, int iEndiannes, uin
                     *pDest++ = usPixel;
                 }
                 break;
+               case 4:
+                for (x=0; x<pDraw->iWidth; x+=2) {
+                    uint8_t d;
+                    d = *s++;
+                    c = (d & 0xf0) | (d >> 4); // left pixel
+                    usPixel = (c >> 3); // blue
+                    usPixel |= ((c >> 2) << 5); // green
+                    usPixel |= ((c >> 3) << 11); // red
+                    if (iEndiannes == PNG_RGB565_BIG_ENDIAN)
+                        usPixel = __builtin_bswap16(usPixel);
+                    *pDest++ = usPixel;
+                    c = (d & 0xf) | (d << 4); // right pixel
+                    usPixel = (c >> 3); // blue 
+                    usPixel |= ((c >> 2) << 5); // green
+                    usPixel |= ((c >> 3) << 11); // red
+                    if (iEndiannes == PNG_RGB565_BIG_ENDIAN)
+                        usPixel = __builtin_bswap16(usPixel);
+                    *pDest++ = usPixel;
+                }
+                break;
+                case 2:
+                {
+                   const uint16_t us2Bit[4] = {0x0000, 0x39e7, 0x7bef, 0xffff};
+                   for (x=0; x<pDraw->iWidth; x++) {
+                       if ((x & 3) == 0) {
+                           c = *s++;
+                       }
+                       usPixel = us2Bit[c >> 6];
+                       if (iEndiannes == PNG_RGB565_BIG_ENDIAN)
+                           usPixel = __builtin_bswap16(usPixel);
+                       *pDest++ = usPixel;
+                       c <<= 2;
+                   } // for x
+                }
+                break;
                 case 1:
                    for (x=0; x<pDraw->iWidth; x++) {
                        if ((x & 7) == 0) {
@@ -632,26 +667,23 @@ PNG_STATIC int PNGParseInfo(PNGIMAGE *pPage)
         }
         // calculate the number of bytes per line of pixels
         switch (pPage->ucPixelType) {
-            default:
-                pPage->iPitch = pPage->iWidth;
-                break;
             case PNG_PIXEL_GRAYSCALE: // grayscale
             case PNG_PIXEL_INDEXED: // indexed
                 pPage->iPitch = (pPage->iWidth * pPage->ucBpp + 7)/8; // bytes per pixel
                 break;
             case PNG_PIXEL_TRUECOLOR: // truecolor
-                pPage->iPitch = 3 * pPage->iWidth;
+                pPage->iPitch = ((3 * pPage->ucBpp) * pPage->iWidth + 7)/8;
                 break;
             case PNG_PIXEL_GRAY_ALPHA: // grayscale + alpha
                 pPage->iPitch = ((2 * pPage->ucBpp) * pPage->iWidth + 7)/8;
                 pPage->iHasAlpha = 1;
                 break;
             case PNG_PIXEL_TRUECOLOR_ALPHA: // truecolor + alpha
-                pPage->iPitch = 4 * pPage->iWidth;
+                pPage->iPitch = ((4 * pPage->ucBpp) * pPage->iWidth + 7)/8;
                 pPage->iHasAlpha = 1;
         } // switch
     }
-    if (pPage->iPitch >= PNG_MAX_BUFFERED_PIXELS/2)
+    if (pPage->iPitch >= PNG_MAX_BUFFERED_PIXELS)
        return PNG_TOO_BIG;
 
     return PNG_SUCCESS;
@@ -781,13 +813,8 @@ PNG_STATIC int DecodePNG(PNGIMAGE *pPage, void *pUser, int iOptions)
     // Either the image buffer must be allocated or a draw callback must be set before entering
     if (pPage->pImage == NULL && pPage->pfnDraw == NULL) {
         pPage->iError = PNG_NO_BUFFER;
-        return pPage->iError;
+        return 0;
     }
-    if (pPage->iPitch >= PNG_MAX_BUFFERED_PIXELS/2) {
-        pPage->iError = PNG_TOO_BIG;
-        return pPage->iError;
-    }
-
     // Use internal buffer to maintain the current and previous lines
     y = (int)(intptr_t)&pPage->ucPixels[0];
     y &= 15; // make sure we're 16-byte aligned, -1 for filter byte
@@ -863,7 +890,9 @@ PNG_STATIC int DecodePNG(PNGIMAGE *pPage, void *pUser, int iOptions)
 #endif
             case 0x504c5445: //'PLTE' palette colors
                 memset(&pPage->ucPalette[768], 0xff, 256); // assume all colors are opaque unless specified
-                memcpy(pPage->ucPalette, &s[iOffset], iLen);
+                if (iLen > 0 && iLen <= 768) {
+                    memcpy(pPage->ucPalette, &s[iOffset], iLen);
+                }
                 if (iOptions & PNG_FAST_PALETTE) { // create a RGB565 palette
                     int i, iColors = 1 << pPage->ucBpp;
                     uint16_t usPixel, *d;
@@ -879,7 +908,7 @@ PNG_STATIC int DecodePNG(PNGIMAGE *pPage, void *pUser, int iOptions)
                 }
                 break;
             case 0x74524e53: //'tRNS' transparency info
-                if (pPage->ucPixelType == PNG_PIXEL_INDEXED) // if palette exists
+                if (pPage->ucPixelType == PNG_PIXEL_INDEXED && iLen > 0 && iLen <= 256) // if palette exists
                 {
                     memcpy(&pPage->ucPalette[768], &s[iOffset], iLen);
                     pPage->iHasAlpha = 1;
@@ -947,7 +976,10 @@ PNG_STATIC int DecodePNG(PNGIMAGE *pPage, void *pUser, int iOptions)
                                 pngd.iHasAlpha = pPage->iHasAlpha;
                                 pngd.iBpp = pPage->ucBpp;
                                 pngd.y = y;
-                                (*pPage->pfnDraw)(&pngd);
+                                if (!(*pPage->pfnDraw)(&pngd)) {
+                                    pPage->iError = PNG_QUIT_EARLY;
+                                    bDone = TRUE;
+                                }
                             } else {
                                 // copy to destination bitmap
                                 memcpy(&pPage->pImage[y * pPage->iPitch], &pCurr[1], pPage->iPitch);

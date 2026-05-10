@@ -313,7 +313,7 @@ int main(int argc, const char * argv[]) {
     png.setBuffer(NULL);
     rc = png.decode(NULL, 0);
     png.close();
-    if (rc == PNG_QUIT_EARLY) { // check transparnet pixel (0,0) to see if it matches the 32-bit BG color we asked for
+    if (rc == PNG_QUIT_EARLY) {
         iTotalPass++;
         PNGLOG(__LINE__, szTestName, " - PASSED");
     } else {
