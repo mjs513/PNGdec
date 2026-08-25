@@ -52,7 +52,11 @@
 // Defaults to 320 32-bit pixels max width
 // but can be overidden with a macro defined at compile time
 #ifndef PNG_MAX_BUFFERED_PIXELS
+#if defined( __LINUX__ ) || defined( __MACH__ )
+#define PNG_MAX_BUFFERED_PIXELS 16386
+#else
 #define PNG_MAX_BUFFERED_PIXELS ((320*4 + 1)*2)
+#endif
 #endif
 
 #ifndef __PNGENC__
