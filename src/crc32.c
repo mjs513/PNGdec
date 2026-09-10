@@ -257,7 +257,7 @@ unsigned long ZEXPORT crc32(unsigned long crc, const unsigned char FAR *buf, uIn
 #define DOLIT32 DOLIT4; DOLIT4; DOLIT4; DOLIT4; DOLIT4; DOLIT4; DOLIT4; DOLIT4
 
 /* ========================================================================= */
-local unsigned long crc32_little(unsigned long crc, const unsigned char FAR *buf, z_size_t len)
+PNG_STATIC unsigned long crc32_little(unsigned long crc, const unsigned char FAR *buf, z_size_t len)
 {
     register z_crc_t c;
     register const z_crc_t FAR *buf4;
@@ -294,7 +294,7 @@ local unsigned long crc32_little(unsigned long crc, const unsigned char FAR *buf
 #define DOBIG32 DOBIG4; DOBIG4; DOBIG4; DOBIG4; DOBIG4; DOBIG4; DOBIG4; DOBIG4
 
 /* ========================================================================= */
-local unsigned long crc32_big(unsigned long crc, const unsigned char FAR *buf, z_size_t len)
+PNG_STATIC unsigned long crc32_big(unsigned long crc, const unsigned char FAR *buf, z_size_t len)
 {
     register z_crc_t c;
     register const z_crc_t FAR *buf4;
@@ -329,7 +329,7 @@ local unsigned long crc32_big(unsigned long crc, const unsigned char FAR *buf, z
 #define GF2_DIM 32      /* dimension of GF(2) vectors (length of CRC) */
 
 /* ========================================================================= */
-local unsigned long gf2_matrix_times(unsigned long *mat, unsigned long vec)
+PNG_STATIC unsigned long gf2_matrix_times(unsigned long *mat, unsigned long vec)
 {
     unsigned long sum;
 
@@ -344,7 +344,7 @@ local unsigned long gf2_matrix_times(unsigned long *mat, unsigned long vec)
 }
 
 /* ========================================================================= */
-local void gf2_matrix_square(unsigned long *square, unsigned long *mat)
+PNG_STATIC void gf2_matrix_square(unsigned long *square, unsigned long *mat)
 {
     int n;
 
@@ -353,7 +353,7 @@ local void gf2_matrix_square(unsigned long *square, unsigned long *mat)
 }
 
 /* ========================================================================= */
-local uLong crc32_combine_(uLong crc1, uLong crc2, z_off64_t len2)
+PNG_STATIC uLong crc32_combine_(uLong crc1, uLong crc2, z_off64_t len2)
 {
     int n;
     unsigned long row;
